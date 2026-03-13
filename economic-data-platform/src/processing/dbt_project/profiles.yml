@@ -1,0 +1,45 @@
+# dbt Profile Configuration
+# Economic Data Analytics Platform
+
+# This file should be placed in ~/.dbt/profiles.yml
+# Or set DBT_PROFILES_DIR environment variable
+
+economic_data_platform:
+  target: dev
+  outputs:
+    # Development environment
+    dev:
+      type: postgres
+      host: "{{ env_var('POSTGRES_HOST', 'localhost') }}"
+      port: "{{ env_var('POSTGRES_PORT', '5432') | int }}"
+      user: "{{ env_var('POSTGRES_USER', 'economic_user') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD', 'economic_password') }}"
+      dbname: "{{ env_var('POSTGRES_DB', 'economic_data') }}"
+      schema: silver  # Default schema for development
+      threads: 4
+      keepalives_idle: 0
+      connect_timeout: 10
+    
+    # Production environment
+    prod:
+      type: postgres
+      host: "{{ env_var('POSTGRES_HOST') }}"
+      port: "{{ env_var('POSTGRES_PORT') | int }}"
+      user: "{{ env_var('POSTGRES_USER') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD') }}"
+      dbname: "{{ env_var('POSTGRES_DB') }}"
+      schema: silver
+      threads: 8
+      keepalives_idle: 0
+      connect_timeout: 10
+    
+    # Test environment
+    test:
+      type: postgres
+      host: localhost
+      port: 5432
+      user: test_user
+      password: test_password
+      dbname: test_db
+      schema: test_silver
+      threads: 2

@@ -1,0 +1,70 @@
+# =============================================================================
+# Minimal Dockerfile for Small VPS (2 vCPU, 4GB RAM)
+# Economic Data Analytics Platform
+# =============================================================================
+# Optimized for minimal memory footprint
+# =============================================================================
+
+FROM python:3.11-alpine
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Install only essential system dependencies
+RUN apk add --no-cache \
+    libpq \
+    curl \
+    && rm -rf /var/cache/apk/*
+
+# Install build dependencies, Python packages, then remove build deps
+RUN apk add --no-cache --virtual .build-deps \
+    gcc \
+    musl-dev \
+    postgresql-dev \
+    && pip install --no-cache-dir \
+    fastapi==0.109.0 \
+    uvicorn[standard]==0.27.0 \
+    psycopg2-binary==2.9.9 \
+    redis==5.0.1 \
+    httpx==0.26.0 \
+    pydantic==2.5.3 \
+    pydantic-settings==2.1.0 \
+    python-jose[cryptography]==3.3.0 \
+    passlib[bcrypt]==1.7.4 \
+    structlog==24.1.0 \
+    tenacity==8.2.3 \
+    python-dateutil==2.8.2 \
+    && apk del .build-deps \
+    && rm -rf /root/.cache
+
+# Copy only necessary source code
+COPY src/api/ ./src/api/
+COPY src/ingestion/ ./src/ingestion/
+COPY src/utils/ ./src/utils/
+COPY src/__init__.py ./src/
+
+# Create non-root user
+RUN adduser -D -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run with minimal workers
+CMD ["uvicorn", "src.api.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "2", \
+     "--limit-concurrency", "50", \
+     "--limit-max-requests", "1000", \
+     "--timeout-keep-alive", "5"]

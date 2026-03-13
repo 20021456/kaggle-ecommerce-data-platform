@@ -1,0 +1,88 @@
+version: 2
+
+models:
+  - name: fct_crypto_daily_analytics
+    description: "Daily cryptocurrency analytics with technical indicators and signals"
+    columns:
+      - name: symbol
+        description: "Trading pair symbol"
+        tests:
+          - not_null
+      - name: trade_date
+        description: "Trading date"
+        tests:
+          - not_null
+      - name: close_price
+        description: "Closing price"
+      - name: ma_7d
+        description: "7-day moving average"
+      - name: ma_30d
+        description: "30-day moving average"
+      - name: trend_signal
+        description: "Trend classification (bullish, bearish, neutral)"
+        tests:
+          - accepted_values:
+              values: ['bullish', 'bearish', 'neutral']
+      - name: volume_signal
+        description: "Volume classification"
+        tests:
+          - accepted_values:
+              values: ['high_volume', 'low_volume', 'normal_volume']
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - symbol
+            - trade_date
+
+  - name: fct_economic_indicators
+    description: "Economic indicators with regime classifications and trends"
+    columns:
+      - name: observation_date
+        description: "Observation date"
+        tests:
+          - not_null
+          - unique
+      - name: economic_regime
+        description: "Economic regime classification"
+        tests:
+          - accepted_values:
+              values: ['goldilocks', 'overheating', 'stagflation', 'recession', 'recovery', 'transition']
+      - name: monetary_policy_stance
+        description: "Monetary policy stance"
+        tests:
+          - accepted_values:
+              values: ['tight', 'neutral', 'loose', 'very_loose']
+      - name: labor_market_health
+        description: "Labor market health classification"
+        tests:
+          - accepted_values:
+              values: ['very_strong', 'strong', 'moderate', 'weak', 'very_weak']
+
+  - name: fct_crypto_macro_analytics
+    description: "Combined crypto and macroeconomic analytics with cross-domain insights"
+    columns:
+      - name: date
+        description: "Analysis date"
+        tests:
+          - not_null
+          - unique
+      - name: btc_close
+        description: "Bitcoin closing price"
+      - name: inflation_rate_yoy
+        description: "Year-over-year inflation rate"
+      - name: economic_regime
+        description: "Economic regime classification"
+      - name: inflation_hedge_status
+        description: "Bitcoin's performance as inflation hedge"
+        tests:
+          - accepted_values:
+              values: ['btc_inflation_hedge_working', 'btc_inflation_hedge_failing', 'neutral_inflation_environment']
+      - name: market_risk_level
+        description: "Overall market risk assessment"
+        tests:
+          - accepted_values:
+              values: ['high_risk', 'moderate_risk', 'low_risk']
+      - name: btc_inflation_correlation_30d
+        description: "30-day rolling correlation between BTC and inflation"
+      - name: btc_rates_correlation_30d
+        description: "30-day rolling correlation between BTC and interest rates"

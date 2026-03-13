@@ -1,0 +1,75 @@
+version: 2
+
+models:
+  - name: int_crypto_daily_ohlcv
+    description: "Daily OHLCV aggregates for cryptocurrencies with derived metrics"
+    columns:
+      - name: symbol
+        description: "Trading pair symbol"
+        tests:
+          - not_null
+      - name: trade_date
+        description: "Trading date"
+        tests:
+          - not_null
+      - name: open_price
+        description: "Opening price"
+      - name: close_price
+        description: "Closing price"
+      - name: high_price
+        description: "Highest price"
+      - name: low_price
+        description: "Lowest price"
+      - name: total_volume
+        description: "Total trading volume"
+      - name: price_change_percentage
+        description: "Daily price change percentage"
+      - name: volatility_percentage
+        description: "Daily volatility percentage"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - symbol
+            - trade_date
+
+  - name: int_economic_indicators_pivoted
+    description: "Pivoted economic indicators with derived metrics"
+    columns:
+      - name: observation_date
+        description: "Observation date"
+        tests:
+          - not_null
+          - unique
+      - name: cpi_all_urban
+        description: "Consumer Price Index for All Urban Consumers"
+      - name: inflation_rate_yoy
+        description: "Year-over-year inflation rate"
+      - name: unemployment_rate
+        description: "Unemployment rate"
+      - name: federal_funds_rate
+        description: "Federal funds effective rate"
+      - name: gdp_growth_rate_yoy
+        description: "Year-over-year GDP growth rate"
+      - name: real_interest_rate
+        description: "Real interest rate (nominal - inflation)"
+
+  - name: int_btc_macro_correlation
+    description: "Bitcoin price data combined with macroeconomic indicators"
+    columns:
+      - name: date
+        description: "Observation date"
+        tests:
+          - not_null
+          - unique
+      - name: btc_close
+        description: "Bitcoin closing price"
+      - name: inflation_rate_yoy
+        description: "Year-over-year inflation rate"
+      - name: federal_funds_rate
+        description: "Federal funds rate"
+      - name: inflation_btc_relationship
+        description: "Categorized relationship between inflation and BTC price movement"
+      - name: rate_environment
+        description: "Interest rate environment classification"
+      - name: money_supply_regime
+        description: "Money supply growth regime"
