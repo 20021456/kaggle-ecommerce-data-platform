@@ -183,6 +183,7 @@ hdfs_data/
 *.crt
 secrets/
 credentials/
+.credentials/
 
 # Temporary files
 tmp/
