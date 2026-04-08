@@ -36,7 +36,7 @@ services:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB:-economic_data}
     ports:
       - "8123:8123"  # HTTP interface
-      - "9000:9000"  # Native interface
+      - "9100:9000"  # Native interface (remapped: host 9100 → container 9000, avoids MinIO conflict)
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - ./sql/clickhouse:/docker-entrypoint-initdb.d
@@ -161,6 +161,80 @@ services:
       - economic-network
 
   # =============================================================================
+  # QUERY ENGINE (Trino + Hive Metastore)
+  # =============================================================================
+
+  # Create hive_metastore database in existing PostgreSQL
+  postgres-init-hive:
+    image: postgres:16-alpine
+    container_name: economic-postgres-init-hive
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-economic_password}
+    entrypoint: >
+      /bin/sh -c "
+      psql -h postgres -U ${POSTGRES_USER:-economic_user} -d ${POSTGRES_DB:-economic_data} -tc \"SELECT 1 FROM pg_database WHERE datname = 'hive_metastore'\" | grep -q 1 || psql -h postgres -U ${POSTGRES_USER:-economic_user} -d ${POSTGRES_DB:-economic_data} -c 'CREATE DATABASE hive_metastore;';
+      exit 0;
+      "
+    networks:
+      - economic-network
+    profiles:
+      - trino
+
+  hive-metastore:
+    image: apache/hive:4.0.1
+    container_name: economic-hive-metastore
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      SERVICE_OPTS: >-
+        -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver
+        -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://postgres:5432/hive_metastore
+        -Djavax.jdo.option.ConnectionUserName=${POSTGRES_USER:-economic_user}
+        -Djavax.jdo.option.ConnectionPassword=${POSTGRES_PASSWORD:-economic_password}
+    ports:
+      - "9083:9083"
+    volumes:
+      - ./trino/conf/metastore-site.xml:/opt/hive/conf/metastore-site.xml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init-hive:
+        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+    networks:
+      - economic-network
+    profiles:
+      - trino
+
+  trino:
+    image: trinodb/trino:latest
+    container_name: economic-trino
+    restart: unless-stopped
+    ports:
+      - "8085:8080"   # Trino UI (host 8085 avoids Airflow 8080 conflict)
+    volumes:
+      - ./trino/etc:/etc/trino
+      - ./trino/conf:/etc/trino/conf
+    depends_on:
+      - hive-metastore
+      - minio
+    networks:
+      - economic-network
+    healthcheck:
+      test: ["CMD", "trino", "--execute", "SELECT 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    profiles:
+      - trino
+
+  # =============================================================================
   # MONITORING
   # =============================================================================
 
@@ -249,9 +323,15 @@ services:
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-your_fernet_key_here}
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-your_secret_key_here}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      # REST API authentication (basic auth for FastAPI proxy)
+      AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
+      AIRFLOW__API__ACCESS_CONTROL_ALLOW_HEADERS: "*"
+      AIRFLOW__API__ACCESS_CONTROL_ALLOW_METHODS: "*"
+      AIRFLOW__API__ACCESS_CONTROL_ALLOW_ORIGINS: "*"
     volumes:
-      - ./src/orchestration/dags:/opt/airflow/dags
-      - ./src/orchestration/plugins:/opt/airflow/plugins
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./dbt:/opt/airflow/dbt
       - airflow_logs:/opt/airflow/logs
     ports:
       - "8080:8080"
@@ -272,9 +352,11 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-economic_user}:${POSTGRES_PASSWORD:-economic_password}@postgres:5432/airflow
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-your_fernet_key_here}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
     volumes:
-      - ./src/orchestration/dags:/opt/airflow/dags
-      - ./src/orchestration/plugins:/opt/airflow/plugins
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./dbt:/opt/airflow/dbt
       - airflow_logs:/opt/airflow/logs
     command: scheduler
     depends_on:

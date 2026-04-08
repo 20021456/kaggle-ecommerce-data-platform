@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: int_orders_enriched
+    description: "Orders enriched with item totals, payment info, and review scores"
+    columns:
+      - name: order_id
+        tests: [not_null, unique]
+
+  - name: int_customer_metrics
+    description: "Customer-level aggregated metrics"
+    columns:
+      - name: customer_unique_id
+        tests: [not_null, unique]
+
+  - name: int_product_performance
+    description: "Product-level sales and review metrics"
+    columns:
+      - name: product_id
+        tests: [not_null, unique]
+
+  - name: int_seller_performance
+    description: "Seller-level performance metrics"
+    columns:
+      - name: seller_id
+        tests: [not_null, unique]
