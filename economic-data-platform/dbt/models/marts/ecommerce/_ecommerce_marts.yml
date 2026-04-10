@@ -38,3 +38,35 @@ models:
         tests: [not_null]
       - name: product_id
         tests: [not_null]
+
+  - name: mart_sales
+    description: "Daily sales KPIs with running totals and 7-day moving averages"
+    columns:
+      - name: order_date
+        tests: [not_null, unique]
+
+  - name: mart_sales_monthly
+    description: "Monthly sales summary with MoM growth"
+    columns:
+      - name: month
+        tests: [not_null, unique]
+
+  - name: mart_customers
+    description: "Customer mart with RFM segmentation, LTV, churn"
+    columns:
+      - name: customer_unique_id
+        tests: [not_null, unique]
+      - name: rfm_segment
+        tests: [not_null]
+
+  - name: mart_logistics
+    description: "Daily logistics KPIs — delivery times, on-time rate, freight"
+    columns:
+      - name: order_date
+        tests: [not_null, unique]
+
+  - name: mart_logistics_by_state
+    description: "Logistics performance by customer state"
+    columns:
+      - name: state
+        tests: [not_null, unique]
