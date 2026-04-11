@@ -1,215 +1,201 @@
-# 🚀 Economic Data Analytics Platform
+# Economic Data Analytics Platform
 
-A **Multi-Domain Data Analytics Platform** combining:
-- **Crypto/Financial Markets** (real-time + historical)
-- **Economic Indicators** (from AEA data sources)
-- **Macroeconomic Data** (FRED, BEA, World Bank)
-- **Research Datasets** (AEA ICPSR, Census, surveys)
+A **Multi-Domain Data Analytics Platform** built on medallion architecture combining:
 
-## 🎯 Features
+- **E-Commerce Analytics** — Brazilian Olist dataset (100k+ orders, RFM segmentation, logistics)
+- **Crypto/Financial Markets** — Binance, CoinGecko, CryptoCompare, Blockchain.info, Fear&Greed
+- **Economic Indicators** — FRED, BEA, BLS, Treasury, World Bank, IMF, OECD
+- **Business Intelligence** — MSSQL enterprise data (45.124.94.158)
 
-- ✅ Real-time streaming + batch processing
-- ✅ Multiple data domains (crypto, economics, finance)
-- ✅ Complex data sources (APIs, datasets, research data)
-- ✅ Medallion architecture (Bronze → Silver → Gold)
-- ✅ Production-grade infrastructure
-
-## 🏗️ Architecture
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    DATA SOURCES (Layer 0)                        │
-│  FINANCIAL/CRYPTO DATA          ECONOMIC DATA (AEA Resources)    │
-│  Binance, CoinGecko,            FRED, BEA, World Bank,          │
-│  CryptoCompare, Blockchain      IMF, Census, AEA ICPSR          │
-└─────────────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                 DATA LAKE (MinIO/S3)                             │
-│  BRONZE (Raw) → SILVER (Cleaned) → GOLD (Analytics)             │
-└─────────────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              PROCESSING LAYER (Spark + dbt)                      │
-└─────────────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│             STORAGE (PostgreSQL + ClickHouse)                    │
-└─────────────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              SERVING LAYER (FastAPI + Grafana)                   │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        DATA SOURCES                                  │
+│  Olist CSV  │  MSSQL  │  20+ APIs (crypto, economic, international) │
+└──────┬──────┴────┬────┴──────────────┬───────────────────────────────┘
+       │           │                   │
+       ▼           ▼                   ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ INGESTION LAYER                                                      │
+│  Python clients (BaseAPIClient) │ Airflow DAGs │ Kafka streaming    │
+└──────┬──────────────────────────┴──────┬────────┴────────────────────┘
+       │                                 │
+       ▼                                 ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ STORAGE                                                              │
+│  PostgreSQL 16 (Bronze → Silver → Gold)  │  ClickHouse (OLAP)       │
+│  MinIO (S3-compatible data lake)         │  Redis (cache/checkpoint) │
+└──────┬───────────────────────────────────┴───────────────────────────┘
+       │
+       ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ TRANSFORMATION                                                       │
+│  dbt (staging → intermediate → marts)  │  Spark (batch jobs)         │
+│  Trino (federated SQL across PG + CH + MinIO)                        │
+└──────┬───────────────────────────────────────────────────────────────┘
+       │
+       ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ SERVING & UI                                                         │
+│  FastAPI REST API (8 routers, 21+ endpoints)                         │
+│  Next.js 16 Dashboard (Airflow monitor, Ingestion monitor, Analytics)│
+│  Grafana (3 dashboards: pipeline health, freshness, quality)         │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 economic-data-platform/
-├── src/
-│   ├── ingestion/          # Data ingestion clients
-│   │   ├── crypto/         # Crypto data sources
-│   │   ├── economic/       # Economic data sources
-│   │   ├── research/       # Research datasets
-│   │   └── streaming/      # Kafka producers/consumers
-│   ├── processing/         # Data processing
-│   │   ├── spark_jobs/     # Spark transformation jobs
-│   │   └── dbt_project/    # dbt transformations
-│   ├── orchestration/      # Airflow DAGs
-│   ├── api/                # FastAPI application
-│   └── utils/              # Shared utilities
-├── sql/                    # SQL scripts
-├── tests/                  # Unit and integration tests
-├── monitoring/             # Prometheus/Grafana configs
-├── notebooks/              # Jupyter notebooks
-├── research/               # Research outputs
-├── scripts/                # Automation scripts
-└── docs/                   # Documentation
+├── src/                         # FastAPI backend + shared Python library
+│   ├── api/                     # FastAPI app (8 routers, 21+ endpoints)
+│   │   ├── routers/             # crypto, economic, analytics, health,
+│   │   │                        # monitor, ingestion, dashboard, query
+│   │   ├── config.py            # API + Airflow + Trino settings
+│   │   └── main.py              # App factory, middleware, router registration
+│   ├── data_platform/           # Shared installable lib (pip install -e src/)
+│   ├── models/schemas.py        # Pydantic models
+│   └── utils/                   # Logger, metrics (Prometheus), helpers
+├── ui/                          # Next.js 16 frontend (App Router + shadcn/ui)
+│   ├── app/monitor/airflow/     # Airflow DAG monitor page
+│   ├── app/monitor/ingestion/   # Data source health page
+│   ├── app/dashboard/           # E-commerce analytics dashboard (Recharts)
+│   └── lib/api.ts               # Typed API client
+├── airflow/                     # Orchestration
+│   ├── dags/ingestion/          # olist_ingestion, mssql_ingestion, etl_daily
+│   ├── dags/transformation/     # dbt_olist_dag
+│   ├── dags/export/             # mart_export_dag
+│   ├── dags/maintenance/        # data_quality_dag
+│   └── common/                  # default_args + callbacks (Slack + email)
+├── dbt/                         # SQL transformations (staging → intermediate → marts)
+├── ingestion/                   # 20+ data source connectors
+│   └── custom/api/              # BaseAPIClient, crypto/, economic/, ecommerce/
+├── sql/postgres/                # DDL: 01_bronze → 05_gold_combined
+├── sql/clickhouse/              # ClickHouse DDL: databases, tables, Kafka
+├── trino/                       # Trino config (catalogs: PG, CH, MinIO/Hive)
+├── monitoring/                  # Prometheus + Grafana
+│   ├── alerts/                  # 10 pipeline + infra alert rules
+│   └── dashboards/grafana/      # pipeline_health, data_freshness, data_quality
+├── data_quality/                # Great Expectations suites + runner
+├── infra/                       # Docker, Terraform, Kubernetes, CI/CD
+├── dokploy/                     # Dokploy deployment configs
+├── tests/                       # DAG integrity, API, query validation, GE suites
+├── docker-compose.yml           # Full local stack (12 services)
+└── Makefile                     # 30+ convenience commands
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
-- Python 3.11+
-- Docker & Docker Compose
-- Git
+- Python 3.11+, Node.js 18+, Docker & Docker Compose
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/economic-data-platform.git
-cd economic-data-platform
+# Clone and setup
+git clone <repo-url> && cd economic-data-platform
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+# Python environment
+python -m venv venv && source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+pip install -e src/  # Install shared library
 
-# Copy environment file
-cp .env.example .env
-# Edit .env with your API keys
+# Environment
+cp .env.example .env  # Edit with your API keys
+
+# Start infrastructure
+make docker-up        # Postgres, ClickHouse, Redis, Kafka, MinIO, Prometheus, Grafana
+docker compose --profile trino up -d  # Optional: Trino + Hive Metastore
+
+# Initialize database
+# DDL auto-runs from sql/postgres/ on first Postgres startup
 
 # Start services
-docker-compose up -d
-
-# Run initial setup
-python scripts/setup.py
+make api-dev          # FastAPI on :8000
+make ui-dev           # Next.js on :3000 (in separate terminal)
 ```
 
-## 📡 Data Sources
-
-### Crypto/Financial (5 sources)
-| Source | Type | Data |
-|--------|------|------|
-| Binance | WebSocket | Real-time trades, OHLCV |
-| CoinGecko | REST API | Coin metadata, prices |
-| CryptoCompare | REST API | Historical OHLCV |
-| Blockchain.info | REST API | Bitcoin blockchain |
-| Fear & Greed | REST API | Market sentiment |
-
-### US Economic (5 sources)
-| Source | Type | Data |
-|--------|------|------|
-| FRED | REST API | 800k+ time series |
-| BEA | REST API | GDP, income, trade |
-| BLS | REST API | Employment, CPI |
-| Census | REST API | Demographics |
-| Treasury | REST API | Interest rates, bonds |
-
-### International (5 sources)
-| Source | Type | Data |
-|--------|------|------|
-| World Bank | REST API | 200+ countries |
-| IMF | REST API | World Economic Outlook |
-| OECD | REST API | Member statistics |
-| WTO | CSV | Trade statistics |
-| Penn World Tables | CSV | GDP comparisons |
-
-### Research (5 sources)
-| Source | Type | Data |
-|--------|------|------|
-| AEA ICPSR | Datasets | 3000+ replication datasets |
-| IPUMS | CSV/API | Census microdata |
-| PSID | Datasets | Panel Survey |
-| CPS | CSV | Population Survey |
-| NHIS | CSV | Health Survey |
-
-## 🔧 API Endpoints
-
-### Crypto
-```
-GET  /api/v1/crypto/coins
-GET  /api/v1/crypto/coins/{symbol}
-GET  /api/v1/crypto/prices/{symbol}
-GET  /api/v1/crypto/history/{symbol}
-```
-
-### Economic
-```
-GET  /api/v1/economic/indicators
-GET  /api/v1/economic/gdp/{country}
-GET  /api/v1/economic/inflation/history
-GET  /api/v1/economic/rates/treasury
-```
-
-### Analytics
-```
-GET  /api/v1/analytics/btc-inflation-correlation
-GET  /api/v1/analytics/crypto-rates-impact
-GET  /api/v1/analytics/macro-crypto-overview
-```
-
-## 📊 Dashboards
-
-Access Grafana dashboards at `http://localhost:3000`:
-- **Crypto Markets** - Real-time crypto analytics
-- **Economic Indicators** - GDP, CPI, unemployment trends
-- **Cross-Domain Analytics** - BTC vs inflation, correlations
-
-## 🧪 Testing
+### With Airflow
 
 ```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=src
-
-# Run specific test file
-pytest tests/unit/test_crypto_clients.py
+docker compose --profile airflow up -d
+# Access Airflow UI: http://localhost:8080
 ```
 
-## 📚 Documentation
+## API Endpoints (21+)
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Setup Guide](docs/SETUP.md)
-- [Data Sources](docs/DATA_SOURCES.md)
-- [API Documentation](docs/API_DOCUMENTATION.md)
-- [Research Guide](docs/RESEARCH_GUIDE.md)
+| Group | Prefix | Endpoints |
+|-------|--------|-----------|
+| Health | `/health` | readiness, liveness |
+| Crypto | `/api/v1/crypto` | coins, prices, history |
+| Economic | `/api/v1/economic` | indicators, GDP, inflation, rates |
+| Analytics | `/api/v1/analytics` | BTC-inflation correlation, macro overview |
+| **Monitor** | `/api/v1/monitor` | DAGs, runs, tasks, trigger, pause (Airflow proxy) |
+| **Ingestion** | `/api/v1/ingestion` | sources, status, history, stats, overview |
+| **Dashboard** | `/api/v1/dashboard` | KPIs, revenue-trends, top-products, segments, delivery, order-status |
+| **Query** | `/api/v1/query/trino` | execute (SQL), schemas, tables, columns |
 
-## 🤝 Contributing
+## Data Sources
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### E-Commerce (Olist)
+9 CSV tables → Bronze → dbt staging → intermediate → Gold marts:
+- `mart_sales` / `mart_sales_monthly` — revenue, AOV, order volume
+- `mart_customers` — RFM segmentation
+- `mart_logistics` / `mart_logistics_by_state` — delivery KPIs
+- `fct_orders` / `dim_customers` — fact + dimension tables
 
-## 📄 License
+### Crypto (5 sources)
+Binance (WebSocket), CoinGecko, CryptoCompare, Blockchain.info, Fear & Greed
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### Economic (10+ sources)
+FRED, BEA, BLS, Treasury, Census, World Bank, IMF, OECD, WTO, Penn World Tables
 
-## 🙏 Acknowledgments
+### Enterprise (MSSQL)
+External SQL Server at `45.124.94.158:1433` (xomdata_dataset)
 
-- [FRED](https://fred.stlouisfed.org/) - Federal Reserve Economic Data
-- [World Bank](https://data.worldbank.org/) - World Development Indicators
-- [AEA](https://www.aeaweb.org/) - American Economic Association
-- [CoinGecko](https://www.coingecko.com/) - Cryptocurrency data
+## Monitoring
+
+| Dashboard | URL | Data |
+|-----------|-----|------|
+| Grafana — Pipeline Health | `http://localhost:3001/grafana/` | DAG runs, ingestion rates, dbt duration |
+| Grafana — Data Freshness | `http://localhost:3001/grafana/` | Checkpoint ages, API rate limits |
+| Grafana — Data Quality | `http://localhost:3001/grafana/` | GE validations, dbt test pass rate |
+| Prometheus | `http://localhost:9090` | Raw metrics |
+| FastAPI Metrics | `http://localhost:8000/metrics` | API + pipeline metrics |
+
+### Alert Rules (10 rules)
+- DAG failures, slow DAGs, ingestion errors, stale data
+- GE validation failures, dbt test rate drops
+- API latency/error rate, slow database/Trino queries
+
+## Testing
+
+```bash
+make test              # All tests
+make test-dags         # DAG integrity (syntax, imports, conventions)
+make test-unit         # Unit tests
+make quality-all       # Great Expectations (Olist + MSSQL suites)
+make lint              # flake8 + isort + black --check
+make type-check        # mypy
+```
+
+## Commands (Makefile)
+
+```bash
+make help              # Show all available commands
+make docker-up         # Start infrastructure (Postgres, CH, Redis, Kafka, MinIO, monitoring)
+make docker-up-full    # Start everything including API + Airflow
+make api-dev           # FastAPI dev server (:8000)
+make ui-dev            # Next.js dev server (:3000)
+make dbt-run           # Run dbt models
+make dbt-test          # Run dbt tests
+make ingest-olist      # Olist CSV ingestion
+make quality-all       # Great Expectations checks
+make grafana-open      # Open Grafana in browser
+```
+
+## License
+
+MIT License — see [LICENSE](LICENSE).
