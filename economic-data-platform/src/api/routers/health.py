@@ -181,6 +181,10 @@ async def get_status() -> Dict[str, Any]:
             "crypto": "/api/v1/crypto",
             "economic": "/api/v1/economic",
             "analytics": "/api/v1/analytics",
+            "monitor": "/api/v1/monitor",
+            "ingestion": "/api/v1/ingestion",
+            "dashboard": "/api/v1/dashboard",
+            "query": "/api/v1/query/trino",
         },
         "rate_limits": {
             "requests_per_minute": api_settings.RATE_LIMIT_REQUESTS,

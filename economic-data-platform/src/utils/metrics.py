@@ -120,6 +120,81 @@ DB_POOL_SIZE = Gauge(
 
 
 # =============================================================================
+# PIPELINE METRICS (Phase 9)
+# =============================================================================
+
+# Airflow DAG run outcomes
+DAG_RUN_TOTAL = Counter(
+    'economic_platform_dag_run_total',
+    'Total DAG runs by outcome',
+    ['dag_id', 'state']
+)
+
+# DAG run duration
+DAG_RUN_DURATION = Histogram(
+    'economic_platform_dag_run_duration_seconds',
+    'DAG run wall-clock duration',
+    ['dag_id'],
+    buckets=(10, 30, 60, 120, 300, 600, 1200, 1800, 3600)
+)
+
+# dbt model run metrics
+DBT_RUN_DURATION = Histogram(
+    'economic_platform_dbt_run_duration_seconds',
+    'dbt run duration (full or per-model)',
+    ['model', 'status'],
+    buckets=(1, 5, 10, 30, 60, 120, 300, 600)
+)
+
+DBT_TEST_RESULTS = Counter(
+    'economic_platform_dbt_test_results_total',
+    'dbt test pass / fail / warn counts',
+    ['status']
+)
+
+# Trino query metrics
+TRINO_QUERY_DURATION = Histogram(
+    'economic_platform_trino_query_duration_seconds',
+    'Trino ad-hoc query latency',
+    ['catalog', 'schema'],
+    buckets=(0.1, 0.5, 1, 2, 5, 10, 30)
+)
+
+TRINO_QUERY_ROWS = Histogram(
+    'economic_platform_trino_query_rows',
+    'Rows returned per Trino query',
+    ['catalog'],
+    buckets=(1, 10, 100, 500, 1000, 5000, 10000)
+)
+
+# Great Expectations data quality
+GE_VALIDATION_RESULTS = Counter(
+    'economic_platform_ge_validation_total',
+    'Great Expectations validation outcomes',
+    ['suite', 'status']
+)
+
+GE_EXPECTATION_RESULTS = Counter(
+    'economic_platform_ge_expectation_total',
+    'Individual GE expectation results',
+    ['suite', 'expectation_type', 'status']
+)
+
+# Ingestion checkpoint metrics
+CHECKPOINT_AGE = Gauge(
+    'economic_platform_checkpoint_age_seconds',
+    'Seconds since last checkpoint per source',
+    ['source', 'table']
+)
+
+CHECKPOINT_ROWS = Gauge(
+    'economic_platform_checkpoint_rows',
+    'Row count from latest checkpoint',
+    ['source', 'table']
+)
+
+
+# =============================================================================
 # SYSTEM METRICS
 # =============================================================================
 
@@ -245,3 +320,48 @@ def set_app_info(version: str, environment: str):
         'version': version,
         'environment': environment
     })
+
+
+# =============================================================================
+# PIPELINE HELPER FUNCTIONS (Phase 9)
+# =============================================================================
+
+def record_dag_run(dag_id: str, state: str, duration_seconds: float = 0):
+    """Record an Airflow DAG run result."""
+    DAG_RUN_TOTAL.labels(dag_id=dag_id, state=state).inc()
+    if duration_seconds > 0:
+        DAG_RUN_DURATION.labels(dag_id=dag_id).observe(duration_seconds)
+
+
+def record_dbt_run(model: str, status: str, duration_seconds: float):
+    """Record a dbt model run."""
+    DBT_RUN_DURATION.labels(model=model, status=status).observe(duration_seconds)
+
+
+def record_dbt_test(status: str, count: int = 1):
+    """Record dbt test results (pass / fail / warn)."""
+    DBT_TEST_RESULTS.labels(status=status).inc(count)
+
+
+def record_trino_query(catalog: str, schema: str, duration_seconds: float, row_count: int):
+    """Record a Trino query execution."""
+    TRINO_QUERY_DURATION.labels(catalog=catalog, schema=schema).observe(duration_seconds)
+    TRINO_QUERY_ROWS.labels(catalog=catalog).observe(row_count)
+
+
+def record_ge_validation(suite: str, success: bool):
+    """Record a Great Expectations suite validation."""
+    GE_VALIDATION_RESULTS.labels(suite=suite, status='pass' if success else 'fail').inc()
+
+
+def record_ge_expectation(suite: str, expectation_type: str, success: bool):
+    """Record an individual GE expectation result."""
+    GE_EXPECTATION_RESULTS.labels(
+        suite=suite, expectation_type=expectation_type, status='pass' if success else 'fail',
+    ).inc()
+
+
+def update_checkpoint_metrics(source: str, table: str, age_seconds: float, row_count: int):
+    """Update checkpoint freshness gauges."""
+    CHECKPOINT_AGE.labels(source=source, table=table).set(age_seconds)
+    CHECKPOINT_ROWS.labels(source=source, table=table).set(row_count)

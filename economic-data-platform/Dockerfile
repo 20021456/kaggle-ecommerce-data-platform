@@ -18,6 +18,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
+    freetds-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -28,8 +29,10 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
-# Copy application code
+# Copy application code (updated paths after restructure)
 COPY src/ ./src/
+COPY ingestion/ ./ingestion/
+COPY sql/ ./sql/
 COPY scripts/ ./scripts/
 
 # Create non-root user for security

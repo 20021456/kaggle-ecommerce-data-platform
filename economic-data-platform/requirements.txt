@@ -21,6 +21,7 @@ sqlalchemy==2.0.25
 asyncpg==0.29.0
 clickhouse-driver==0.2.6
 clickhouse-connect==0.7.0
+pymssql==2.2.11
 
 # Redis
 redis==5.0.1

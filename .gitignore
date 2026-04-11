@@ -139,12 +139,21 @@ docker-compose.override.yml
 # Data files
 *.csv
 *.parquet
-*.json
 *.xml
 data/
 datasets/
 raw_data/
 processed_data/
+
+# Keep specific JSON config files (override *.json ignore)
+# JSON data files are ignored, but config/dashboard JSONs must be tracked
+!economic-data-platform/monitoring/**/*.json
+!economic-data-platform/data_quality/**/*.json
+!economic-data-platform/dbt/**/*.json
+!**/components.json
+!**/package.json
+!**/package-lock.json
+!**/tsconfig.json
 
 # Kaggle
 kaggle.json
@@ -195,6 +204,7 @@ temp/
 # OS
 Thumbs.db
 .DS_Store
+nul
 
 # Monitoring
 prometheus_data/

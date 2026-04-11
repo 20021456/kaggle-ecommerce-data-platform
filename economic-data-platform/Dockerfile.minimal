@@ -43,11 +43,10 @@ RUN apk add --no-cache --virtual .build-deps \
     && apk del .build-deps \
     && rm -rf /root/.cache
 
-# Copy only necessary source code
+# Copy only necessary source code (updated paths after restructure)
 COPY src/api/ ./src/api/
-COPY src/ingestion/ ./src/ingestion/
-COPY src/utils/ ./src/utils/
-COPY src/__init__.py ./src/
+COPY src/data_platform/ ./src/data_platform/
+COPY ingestion/custom/config.py ./ingestion/custom/config.py
 
 # Create non-root user
 RUN adduser -D -u 1000 appuser && chown -R appuser:appuser /app

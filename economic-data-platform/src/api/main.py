@@ -18,7 +18,16 @@ from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 
 from src.api.config import api_settings
-from src.api.routers import crypto, economic, analytics, health
+from src.api.routers import (
+    crypto,
+    economic,
+    analytics,
+    health,
+    monitor,
+    ingestion,
+    dashboard,
+    query,
+)
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -193,6 +202,10 @@ app.include_router(health.router, tags=["Health"])
 app.include_router(crypto.router, prefix="/api/v1/crypto", tags=["Crypto"])
 app.include_router(economic.router, prefix="/api/v1/economic", tags=["Economic"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
+app.include_router(monitor.router, prefix="/api/v1/monitor", tags=["Monitor"])
+app.include_router(ingestion.router, prefix="/api/v1/ingestion", tags=["Ingestion"])
+app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
+app.include_router(query.router, prefix="/api/v1/query/trino", tags=["Query"])
 
 # Mount Prometheus metrics
 metrics_app = make_asgi_app()
@@ -220,6 +233,10 @@ async def root():
             "crypto": "/api/v1/crypto",
             "economic": "/api/v1/economic",
             "analytics": "/api/v1/analytics",
+            "monitor": "/api/v1/monitor",
+            "ingestion": "/api/v1/ingestion",
+            "dashboard": "/api/v1/dashboard",
+            "query": "/api/v1/query/trino",
         }
     }
 

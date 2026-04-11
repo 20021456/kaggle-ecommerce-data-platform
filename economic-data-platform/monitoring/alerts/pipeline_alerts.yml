@@ -1,0 +1,110 @@
+groups:
+  - name: pipeline_health
+    rules:
+      # ── DAG failures ──────────────────────────────────────────
+      - alert: DAGRunFailed
+        expr: increase(economic_platform_dag_run_total{state="failed"}[1h]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Airflow DAG {{ $labels.dag_id }} failed"
+          description: "DAG {{ $labels.dag_id }} had {{ $value }} failure(s) in the last hour."
+
+      - alert: DAGRunSlow
+        expr: histogram_quantile(0.95, rate(economic_platform_dag_run_duration_seconds_bucket[1h])) > 3600
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DAG {{ $labels.dag_id }} is running slow (p95 > 1h)"
+          description: "p95 duration is {{ $value | humanizeDuration }}."
+
+      # ── Ingestion health ──────────────────────────────────────
+      - alert: IngestionErrors
+        expr: rate(economic_platform_records_ingested_total{status="error"}[15m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ingestion errors for {{ $labels.source }}"
+          description: "Source {{ $labels.source }} ({{ $labels.domain }}) has error rate {{ $value }}/s."
+
+      - alert: IngestionStale
+        expr: economic_platform_checkpoint_age_seconds > 172800
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Stale data: {{ $labels.source }}/{{ $labels.table }}"
+          description: "No new data for {{ $value | humanizeDuration }}. Expected refresh within 48h."
+
+      # ── Data quality ──────────────────────────────────────────
+      - alert: GEValidationFailed
+        expr: increase(economic_platform_ge_validation_total{status="fail"}[1h]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Great Expectations suite {{ $labels.suite }} FAILED"
+          description: "One or more expectations failed during validation."
+
+      - alert: DBTTestsFailing
+        expr: |
+          (sum(economic_platform_dbt_test_results_total{status="pass"})
+           / sum(economic_platform_dbt_test_results_total)) < 0.95
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "dbt test pass rate below 95%"
+          description: "Current pass rate is {{ $value | humanizePercentage }}."
+
+      - alert: DataQualityIssueSpike
+        expr: rate(economic_platform_data_quality_issues_total[15m]) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Data quality issues spiking for {{ $labels.domain }}"
+          description: "{{ $labels.issue_type }} issues at {{ $value }}/s."
+
+  - name: infrastructure
+    rules:
+      # ── API health ────────────────────────────────────────────
+      - alert: APIHighLatency
+        expr: histogram_quantile(0.95, rate(economic_platform_http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency > 2s on {{ $labels.endpoint }}"
+
+      - alert: APIHighErrorRate
+        expr: |
+          sum(rate(economic_platform_http_requests_total{status_code=~"5.."}[5m]))
+          / sum(rate(economic_platform_http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API error rate > 5%"
+          description: "{{ $value | humanizePercentage }} of requests are returning 5xx."
+
+      # ── Database ──────────────────────────────────────────────
+      - alert: DatabaseQuerySlow
+        expr: histogram_quantile(0.95, rate(economic_platform_db_query_duration_seconds_bucket[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database {{ $labels.database }} p95 query time > 5s"
+
+      # ── Trino ─────────────────────────────────────────────────
+      - alert: TrinoQuerySlow
+        expr: histogram_quantile(0.95, rate(economic_platform_trino_query_duration_seconds_bucket[5m])) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Trino p95 query time > 20s"

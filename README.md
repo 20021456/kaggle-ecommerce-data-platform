@@ -1,12 +1,12 @@
-# 🚀 Kaggle E-Commerce Data Engineering Platform
+# 🚀 Economic Data Engineering Platform
 
-A complete end-to-end data engineering platform demonstrating modern data stack with Brazilian E-Commerce dataset from Kaggle.
+A complete end-to-end data engineering platform demonstrating modern data stack with data sourced from Microsoft SQL Server.
 
 ## 🎯 Project Overview
 
 This project showcases a production-grade data engineering pipeline that:
-- Ingests data from Kaggle (Brazilian E-Commerce Olist dataset - 9 relational tables)
-- Stores raw data in HDFS (Hadoop Distributed File System)
+- Ingests data from Microsoft SQL Server (external MSSQL database - xomdata_dataset)
+- Stores raw data in PostgreSQL (Bronze layer)
 - Processes data using Apache Spark and dbt
 - Implements medallion architecture (Bronze → Silver → Gold)
 - Deploys to production using Dokploy
@@ -15,53 +15,43 @@ This project showcases a production-grade data engineering pipeline that:
 ## 🏗️ Architecture
 
 ```
-Kaggle API → Python Ingestion → HDFS (Bronze)
-                                   ↓
-                          Spark ELT Processing
-                                   ↓
-                    PostgreSQL (Silver) + ClickHouse (Gold)
-                                   ↓
-                          dbt Transformations
-                                   ↓
-                    Data Marts (Star Schema)
-                                   ↓
-                    FastAPI + Grafana Dashboards
+MSSQL Server → Python Ingestion → PostgreSQL (Bronze)
+                                       ↓
+                              Spark ELT Processing
+                                       ↓
+                        PostgreSQL (Silver) + ClickHouse (Gold)
+                                       ↓
+                              dbt Transformations
+                                       ↓
+                        Data Marts (Star Schema)
+                                       ↓
+                        FastAPI + Grafana Dashboards
 ```
 
 **Orchestration:** Apache Airflow  
 **Monitoring:** Prometheus + Grafana + Great Expectations  
 **Deployment:** Dokploy (Docker-based PaaS)
 
-## 📊 Dataset
+## 📊 Data Source
 
-**Brazilian E-Commerce Public Dataset by Olist**
-- 100,000+ orders from 2016-2018
-- 9 relational CSV files
-- Real-world e-commerce data
-
-**Tables:**
-1. Orders
-2. Order Items
-3. Payments
-4. Reviews
-5. Customers
-6. Products
-7. Sellers
-8. Geolocation
-9. Category Translation
+**Microsoft SQL Server (External)**
+- Host: `45.124.94.158`
+- Port: `1433`
+- Database: `xomdata_dataset`
+- Multiple relational tables
 
 ## 🛠️ Tech Stack
 
 **Data Ingestion:**
 - Python 3.11+
-- Kaggle API
+- pymssql (MSSQL connector)
 - Great Expectations (data quality)
 
 **Storage:**
-- HDFS (Hadoop 3.3.x) - Raw data lake
-- PostgreSQL 16 - Transactional data
-- ClickHouse 24.1 - Analytics
+- PostgreSQL 16 - Transactional data (Bronze/Silver)
+- ClickHouse 24.1 - Analytics (Gold)
 - Redis 7 - Caching
+- MinIO - Object storage
 
 **Processing:**
 - Apache Spark 3.5.x - ELT jobs
@@ -70,7 +60,7 @@ Kaggle API → Python Ingestion → HDFS (Bronze)
 
 **Orchestration:**
 - Apache Airflow 2.8+
-- Celery executor
+- LocalExecutor
 
 **Monitoring:**
 - Prometheus
@@ -88,15 +78,15 @@ Kaggle API → Python Ingestion → HDFS (Bronze)
 - Python 3.11+
 - Docker & Docker Compose
 - Git
-- Kaggle API credentials
+- MSSQL Server credentials
 - 16GB RAM minimum (32GB recommended)
 
 ### Installation
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/kaggle-ecommerce-data-engineering.git
-cd kaggle-ecommerce-data-engineering
+git clone https://github.com/yourusername/economic-data-platform.git
+cd economic-data-platform
 
 # Create virtual environment
 python -m venv venv
@@ -105,14 +95,9 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Setup Kaggle credentials
-mkdir -p ~/.kaggle
-cp kaggle.json ~/.kaggle/
-chmod 600 ~/.kaggle/kaggle.json
-
 # Copy environment file
 cp .env.example .env
-# Edit .env with your configurations
+# Edit .env with your MSSQL credentials and other configurations
 
 # Start infrastructure
 docker-compose up -d
@@ -135,7 +120,6 @@ airflow scheduler &
 Airflow UI: http://localhost:8080 (admin/admin)
 Grafana: http://localhost:3000 (admin/admin)
 API: http://localhost:8000
-HDFS NameNode: http://localhost:9870
 Spark Master: http://localhost:8081
 ```
 
@@ -146,7 +130,7 @@ Spark Master: http://localhost:8081
 ├── economic-data-platform/
 │   ├── src/
 │   │   ├── ingestion/
-│   │   │   ├── ecommerce/          # Kaggle ingestion clients
+│   │   │   ├── mssql_client.py     # MSSQL data ingestion client
 │   │   │   ├── crypto/
 │   │   │   └── economic/
 │   │   ├── processing/
@@ -169,15 +153,15 @@ Spark Master: http://localhost:8081
 
 ## 🔄 Data Pipeline
 
-### 1. Ingestion (Airflow DAG: `kaggle_ingestion_dag`)
-- Download datasets from Kaggle API
+### 1. Ingestion (Airflow DAG: `mssql_ingestion_dag`)
+- Connect to MSSQL Server and read datasets
 - Validate data quality with Great Expectations
-- Store raw CSVs in HDFS `/bronze/olist/`
+- Store raw data in PostgreSQL `bronze_*` tables
 
 ### 2. ELT Processing (Airflow DAG: `spark_elt_dag`)
-- Read from HDFS using Spark
+- Read from Bronze layer using Spark
 - Clean and validate data
-- Write to PostgreSQL `bronze_*` tables
+- Write to PostgreSQL Silver tables
 
 ### 3. dbt Transformations (Airflow DAG: `dbt_transformation_dag`)
 - **Staging (Silver):** Clean, standardize, deduplicate
@@ -239,7 +223,6 @@ dim_geography (geography_key PK, zip_code, city, state, ...)
 ### Infrastructure Monitoring
 - Prometheus metrics collection
 - Grafana dashboards
-- HDFS health checks
 - Database connection pools
 
 ## 🚢 Deployment
@@ -256,15 +239,13 @@ git push origin main
 
 # Deploy via Dokploy UI
 # Or use CLI
-dokploy deploy --project kaggle-ecommerce
+dokploy deploy --project economic-data-platform
 ```
 
 ## 📚 Documentation
 
-- [Architecture Details](.sisyphus/plans/kaggle-ecommerce-data-engineering.md)
-- [Deployment Guide](.sisyphus/notepads/kaggle-ecommerce-data-engineering/deployment.md)
-- [Architectural Decisions](.sisyphus/notepads/kaggle-ecommerce-data-engineering/decisions.md)
-- [Known Issues](.sisyphus/notepads/kaggle-ecommerce-data-engineering/issues.md)
+- [Architecture Details](.sisyphus/plans/)
+- [Deployment Guide](economic-data-platform/DEPLOYMENT_GUIDE.md)
 
 ## 🧪 Testing
 
@@ -294,8 +275,7 @@ This project is licensed under the MIT License - see LICENSE file for details.
 
 ## 🙏 Acknowledgments
 
-- [Kaggle](https://www.kaggle.com/) - Dataset platform
-- [Olist](https://olist.com/) - Brazilian E-Commerce dataset
+- [Microsoft SQL Server](https://www.microsoft.com/sql-server) - Input data source
 - [Apache Airflow](https://airflow.apache.org/) - Workflow orchestration
 - [dbt](https://www.getdbt.com/) - Data transformations
 - [Dokploy](https://dokploy.com/) - Deployment platform
