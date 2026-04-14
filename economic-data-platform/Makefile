@@ -224,12 +224,12 @@ type-check:
 # =============================================================================
 
 grafana-open:
-	@echo "Opening Grafana..."
-	python -m webbrowser "http://localhost:3001"
+	@echo "Opening Grafana at http://localhost:3001"
+	@open http://localhost:3001 2>/dev/null || start http://localhost:3001 2>/dev/null || xdg-open http://localhost:3001 || python -m webbrowser "http://localhost:3001"
 
 prometheus-open:
-	@echo "Opening Prometheus..."
-	python -m webbrowser "http://localhost:9090"
+	@echo "Opening Prometheus at http://localhost:9090"
+	@open http://localhost:9090 2>/dev/null || start http://localhost:9090 2>/dev/null || xdg-open http://localhost:9090 || python -m webbrowser "http://localhost:9090"
 
 # =============================================================================
 # Utilities
@@ -267,14 +267,4 @@ spark-submit-crypto:
 spark-submit-econ:
 	spark-submit --master local[*] src/processing/spark_jobs/bronze_to_silver_economic.py
 
-# =============================================================================
-# Monitoring
-# =============================================================================
 
-grafana-open:
-	@echo "Opening Grafana at http://localhost:3000"
-	@open http://localhost:3000 2>/dev/null || start http://localhost:3000 2>/dev/null || xdg-open http://localhost:3000
-
-prometheus-open:
-	@echo "Opening Prometheus at http://localhost:9090"
-	@open http://localhost:9090 2>/dev/null || start http://localhost:9090 2>/dev/null || xdg-open http://localhost:9090

@@ -58,7 +58,8 @@ def _get_redis() -> Optional[redis.Redis]:
         )
         _redis_client.ping()
         return _redis_client
-    except Exception:
+    except Exception as exc:
+        logger.debug("Redis unavailable for dashboard cache: %s", exc)
         _redis_client = None
         return None
 
@@ -76,7 +77,8 @@ def _cache_get(key: str) -> Optional[Any]:
     try:
         raw = r.get(key)
         return json.loads(raw) if raw else None
-    except Exception:
+    except Exception as exc:
+        logger.debug("Cache read error for key %s: %s", key, exc)
         return None
 
 
@@ -86,8 +88,8 @@ def _cache_set(key: str, value: Any, ttl: int = CACHE_TTL) -> None:
         return
     try:
         r.setex(key, ttl, json.dumps(value, default=str))
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Cache write error for key %s: %s", key, exc)
 
 
 def _get_pg_conn():
@@ -114,7 +116,8 @@ def _get_clickhouse():
             database=api_settings.CLICKHOUSE_DB,
             connect_timeout=5,
         )
-    except Exception:
+    except Exception as exc:
+        logger.debug("ClickHouse unavailable: %s", exc)
         return None
 
 
@@ -135,8 +138,8 @@ def _query(sql: str, params: Optional[tuple] = None) -> List[Dict[str, Any]]:
         finally:
             try:
                 ch.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("ClickHouse close error: %s", exc)
 
     # --- PostgreSQL fallback ---
     try:
@@ -288,7 +291,8 @@ async def get_kpis(
     try:
         ot_rows = _query(on_time_sql)
         on_time_pct = float(ot_rows[0].get("on_time_pct") or 0) if ot_rows else None
-    except Exception:
+    except Exception as exc:
+        logger.debug("On-time delivery query error: %s", exc)
         on_time_pct = None
 
     result = KPIResponse(
@@ -550,7 +554,8 @@ async def get_delivery_performance(
     try:
         freight_rows = _query(freight_sql)
         avg_freight = float(freight_rows[0].get("avg_freight") or 0) if freight_rows else 0
-    except Exception:
+    except Exception as exc:
+        logger.debug("Freight query error: %s", exc)
         avg_freight = 0
 
     result = DeliveryMetrics(

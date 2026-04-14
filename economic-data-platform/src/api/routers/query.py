@@ -180,8 +180,8 @@ async def execute_query(body: QueryRequest):
         try:
             cur.close()
             conn.close()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Trino connection cleanup error: %s", exc)
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
 

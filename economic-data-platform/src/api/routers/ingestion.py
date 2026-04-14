@@ -159,7 +159,8 @@ def _get_redis() -> Optional[redis.Redis]:
         )
         _redis_client.ping()
         return _redis_client
-    except Exception:
+    except Exception as exc:
+        logger.debug("Redis unavailable for ingestion monitoring: %s", exc)
         _redis_client = None
         return None
 
@@ -409,7 +410,8 @@ async def get_ingestion_stats(
             try:
                 cur.execute(f"SELECT count(*) FROM {tbl}")  # noqa: S608
                 pg_row_counts[tbl] = cur.fetchone()[0]
-            except Exception:
+            except Exception as exc:
+                logger.debug("Row count query failed for %s: %s", tbl, exc)
                 pg_row_counts[tbl] = -1
                 conn.rollback()
 
@@ -449,8 +451,8 @@ async def get_ingestion_stats(
                     for tbl_name, rc in seen_tables.items():
                         table_stats.append({"table": tbl_name, "row_count": rc, "source": "redis_checkpoint"})
                         total += rc
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Redis checkpoint read error for %s: %s", src_id, exc)
 
         results.append(
             IngestionStats(
@@ -495,7 +497,8 @@ async def get_ingestion_overview():
                             total_rows += info.get("row_count", 0)
                 else:
                     unknown += 1
-            except Exception:
+            except Exception as exc:
+                logger.debug("Redis overview error for %s: %s", src_id, exc)
                 degraded += 1
         else:
             unknown += 1

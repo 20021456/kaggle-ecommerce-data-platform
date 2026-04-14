@@ -53,7 +53,8 @@ def _get_redis() -> Optional[redis.Redis]:
         )
         _redis_client.ping()
         return _redis_client
-    except Exception:
+    except Exception as exc:
+        logger.debug("Redis unavailable for monitor cache: %s", exc)
         _redis_client = None
         return None
 
@@ -65,7 +66,8 @@ def _cache_get(key: str) -> Optional[Any]:
     try:
         raw = r.get(key)
         return json.loads(raw) if raw else None
-    except Exception:
+    except Exception as exc:
+        logger.debug("Cache read error for key %s: %s", key, exc)
         return None
 
 
@@ -75,8 +77,8 @@ def _cache_set(key: str, value: Any, ttl: int) -> None:
         return
     try:
         r.setex(key, ttl, json.dumps(value, default=str))
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Cache write error for key %s: %s", key, exc)
 
 
 # ---------------------------------------------------------------------------

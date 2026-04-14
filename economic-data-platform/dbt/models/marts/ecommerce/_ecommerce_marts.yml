@@ -25,6 +25,19 @@ models:
       - name: date_key
         tests: [not_null, unique]
 
+  - name: dim_geography
+    description: "Geographic dimension — zip_code, city, state, region with coordinates"
+    columns:
+      - name: zip_code_prefix
+        tests: [not_null, unique]
+      - name: state
+        tests: [not_null]
+      - name: region
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Sudeste', 'Sul', 'Nordeste', 'Centro-Oeste', 'Norte', 'Desconhecido']
+
   - name: fct_orders
     description: "Central order fact table with all metrics"
     columns:
