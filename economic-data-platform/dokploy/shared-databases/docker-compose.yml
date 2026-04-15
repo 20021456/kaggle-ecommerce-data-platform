@@ -215,6 +215,101 @@ services:
       - "dokploy.name=Kafka"
       - "dokploy.description=Message queue for streaming data"
 
+  # =============================================================================
+  # Hive Metastore — Schema catalog for Trino → MinIO
+  # =============================================================================
+  hive-metastore:
+    image: apache/hive:4.0.1
+    container_name: shared-hive-metastore
+    restart: always
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      SERVICE_OPTS: >-
+        -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver
+        -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://postgres:5432/hive_metastore
+        -Djavax.jdo.option.ConnectionUserName=${POSTGRES_USER:-economic_user}
+        -Djavax.jdo.option.ConnectionPassword=${POSTGRES_PASSWORD}
+    ports:
+      - "9083:9083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init-hive:
+        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+    networks:
+      - dokploy-network
+    labels:
+      - "dokploy.name=Hive Metastore"
+      - "dokploy.description=Schema catalog for Trino"
+    profiles:
+      - trino
+
+  # Create hive_metastore database in PostgreSQL
+  postgres-init-hive:
+    image: postgres:16-alpine
+    container_name: shared-postgres-init-hive
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    entrypoint: >
+      /bin/sh -c "
+      psql -h postgres -U ${POSTGRES_USER:-economic_user} -d ${POSTGRES_DB:-economic_data} -tc \"SELECT 1 FROM pg_database WHERE datname = 'hive_metastore'\" | grep -q 1 || psql -h postgres -U ${POSTGRES_USER:-economic_user} -d ${POSTGRES_DB:-economic_data} -c 'CREATE DATABASE hive_metastore;';
+      exit 0;
+      "
+    networks:
+      - dokploy-network
+    profiles:
+      - trino
+
+  # =============================================================================
+  # Trino — Federated SQL query engine over MinIO data lake
+  # =============================================================================
+  trino:
+    image: trinodb/trino:latest
+    container_name: shared-trino
+    restart: always
+    ports:
+      - "8085:8080"
+    volumes:
+      - ../../trino/etc:/etc/trino:ro
+      - ../../trino/conf:/etc/trino/conf:ro
+    depends_on:
+      - hive-metastore
+      - minio
+    healthcheck:
+      test: ["CMD", "trino", "--execute", "SELECT 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+    networks:
+      - dokploy-network
+    labels:
+      - "dokploy.name=Trino"
+      - "dokploy.description=Federated SQL query engine for data lake"
+      - "traefik.enable=true"
+      - "traefik.http.routers.trino.rule=Host(`trino.${DOMAIN}`)"
+      - "traefik.http.routers.trino.entrypoints=websecure"
+      - "traefik.http.routers.trino.tls.certresolver=letsencrypt"
+      - "traefik.http.services.trino.loadbalancer.server.port=8080"
+    profiles:
+      - trino
+
 volumes:
   postgres_data:
   clickhouse_data:

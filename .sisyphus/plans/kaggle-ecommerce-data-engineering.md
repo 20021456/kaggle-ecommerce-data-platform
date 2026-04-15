@@ -149,7 +149,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
 
 ### Phase 1: Infrastructure Setup (5 tasks)
 
-- [ ] **T1.1:** Add Trino + Hive Metastore to docker-compose
+- [x] **T1.1:** Add Trino + Hive Metastore to docker-compose
   - Add `trino` service (trinodb/trino:latest)
   - Add `hive-metastore` service with PostgreSQL backend (reuse existing PG)
   - Create Trino catalog config: `etc/catalog/minio.properties` (Hive connector → MinIO)
@@ -161,7 +161,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No
   - **Estimated time:** 4 hours
 
-- [ ] **T1.2:** Configure Trino-MinIO integration
+- [x] **T1.2:** Configure Trino-MinIO integration
   - Create Trino schemas: `minio.bronze`, `minio.silver`, `minio.gold`
   - Test CREATE TABLE with Parquet format pointing to MinIO
   - Test INSERT/SELECT on Parquet files in MinIO
@@ -169,7 +169,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No (depends on T1.1)
   - **Estimated time:** 2 hours
 
-- [ ] **T1.3:** Configure Airflow REST API
+- [x] **T1.3:** Configure Airflow REST API
   - Enable Airflow REST API via environment variables
   - Set `AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth`
   - Create API user: `airflow users create --role Admin --username api_user`
@@ -177,14 +177,14 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T1.1)
   - **Estimated time:** 1 hour
 
-- [ ] **T1.4:** Update Dokploy deployment configs
+- [x] **T1.4:** Update Dokploy deployment configs
   - Update `dokploy/shared-databases/docker-compose.yml` with Trino + Hive
   - Update `dokploy/application/docker-compose.yml`
   - Update `.env.example` with Trino settings
   - **Parallelizable:** Yes (with T1.2)
   - **Estimated time:** 2 hours
 
-- [ ] **T1.5:** Verify all services running
+- [x] **T1.5:** Verify all services running
   - `docker-compose up -d` full stack
   - Health check: PostgreSQL, ClickHouse, Redis, Kafka, MinIO, Trino, Airflow
   - Verify MinIO buckets (bronze/silver/gold)
@@ -195,7 +195,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
 
 ### Phase 2: Data Ingestion Layer (5 tasks)
 
-- [ ] **T2.1:** Create Kaggle API client
+- [x] **T2.1:** Create Kaggle API client
   - Install `kaggle` package
   - Create `ingestion/custom/api/ecommerce/kaggle_client.py`
   - Extend `BaseAPIClient` pattern from existing clients
@@ -206,7 +206,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No
   - **Estimated time:** 3 hours
 
-- [ ] **T2.2:** Build Olist data validation module
+- [x] **T2.2:** Build Olist data validation module
   - Create schema validators for 9 Olist CSV tables
   - Validate: column names, data types, nulls, referential integrity
   - Validate: order_id → customer_id, product_id → seller_id relationships
@@ -215,7 +215,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T2.1)
   - **Estimated time:** 4 hours
 
-- [ ] **T2.3:** Create MinIO data lake loader (Olist)
+- [x] **T2.3:** Create MinIO data lake loader (Olist)
   - Write Olist CSVs to MinIO as Parquet: `bronze/olist/{table}/YYYY-MM-DD.parquet`
   - Use existing `MinIOClient.write_to_layer()`
   - Add partition-by-date logic
@@ -224,7 +224,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No (depends on T2.1, T1.2)
   - **Estimated time:** 3 hours
 
-- [ ] **T2.4:** Create MinIO data lake loader (MSSQL)
+- [x] **T2.4:** Create MinIO data lake loader (MSSQL)
   - Read tables from MSSQL using existing `MSSQLClient`
   - Write to MinIO as Parquet: `bronze/mssql/{table}/YYYY-MM-DD.parquet`
   - Handle large tables with batched reads
@@ -232,7 +232,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T2.3)
   - **Estimated time:** 3 hours
 
-- [ ] **T2.5:** Build ingestion checkpoint manager
+- [x] **T2.5:** Build ingestion checkpoint manager
   - Track which tables/dates have been ingested
   - Store checkpoints in Redis
   - Implement resume logic (skip already-ingested partitions)
@@ -242,7 +242,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
 
 ### Phase 3: PostgreSQL Bronze Layer (4 tasks)
 
-- [ ] **T3.1:** Create Olist bronze schema DDL
+- [x] **T3.1:** Create Olist bronze schema DDL
   - Create `sql/postgres/06_bronze_olist.sql`
   - 9 tables: `bronze.olist_orders`, `bronze.olist_order_items`, `bronze.olist_customers`, etc.
   - Match exact Kaggle CSV column names and types
@@ -251,14 +251,14 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No
   - **Estimated time:** 3 hours
 
-- [ ] **T3.2:** Create MSSQL bronze schema DDL
+- [x] **T3.2:** Create MSSQL bronze schema DDL
   - Create `sql/postgres/07_bronze_mssql.sql`
   - Auto-generate from MSSQL schema discovery (use test_mssql_connection.py --generate-sql)
   - Add `ingested_at`, `source_schema`, `source_table` metadata columns
   - **Parallelizable:** Yes (with T3.1)
   - **Estimated time:** 2 hours
 
-- [ ] **T3.3:** Build MinIO → PostgreSQL loader
+- [x] **T3.3:** Build MinIO → PostgreSQL loader
   - Read Parquet from MinIO bronze bucket
   - Insert into PostgreSQL bronze tables
   - Handle upserts (avoid duplicates on re-runs)
@@ -266,7 +266,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No (depends on T3.1, T3.2)
   - **Estimated time:** 4 hours
 
-- [ ] **T3.4:** Verify data quality in bronze layer
+- [x] **T3.4:** Verify data quality in bronze layer
   - Row count validation (MinIO Parquet vs PostgreSQL bronze)
   - Spot-check column values
   - Test Trino queries against MinIO match PostgreSQL bronze
@@ -275,14 +275,14 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
 
 ### Phase 4: dbt Transformations — Olist (4 tasks)
 
-- [ ] **T4.1:** Add Olist sources to dbt
+- [x] **T4.1:** Add Olist sources to dbt
   - Update `dbt/models/sources/sources.yml` with olist source tables
   - Add source freshness tests
   - Define relationships between tables
   - **Parallelizable:** No
   - **Estimated time:** 2 hours
 
-- [ ] **T4.2:** Create Olist staging models (Silver)
+- [x] **T4.2:** Create Olist staging models (Silver)
   - `stg_olist_orders.sql` — clean timestamps, status enum
   - `stg_olist_order_items.sql` — clean prices, freight values
   - `stg_olist_customers.sql` — standardize city/state names
@@ -294,7 +294,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No (depends on T4.1)
   - **Estimated time:** 6 hours
 
-- [ ] **T4.3:** Create Olist intermediate models
+- [x] **T4.3:** Create Olist intermediate models
   - `int_orders_enriched.sql` — join orders + items + payments + reviews
   - `int_customer_metrics.sql` — aggregate customer stats (order count, total spend, avg review)
   - `int_product_performance.sql` — product sales, revenue, review scores
@@ -303,7 +303,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No (depends on T4.2)
   - **Estimated time:** 5 hours
 
-- [ ] **T4.4:** Create dimensional models (Gold layer)
+- [x] **T4.4:** Create dimensional models (Gold layer)
   - `dim_customers.sql` — customer dimension with segments
   - `dim_products.sql` — product dimension with categories
   - `dim_sellers.sql` — seller dimension with geography
@@ -316,7 +316,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
 
 ### Phase 5: Data Marts (4 tasks)
 
-- [ ] **T5.1:** Build sales_mart
+- [x] **T5.1:** Build sales_mart
   - Daily/weekly/monthly revenue aggregations
   - Product category performance rankings
   - Payment method distribution analysis
@@ -325,7 +325,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No (depends on T4.4)
   - **Estimated time:** 4 hours
 
-- [ ] **T5.2:** Build customer_mart
+- [x] **T5.2:** Build customer_mart
   - RFM segmentation (Recency, Frequency, Monetary)
   - Customer lifetime value (CLV) calculations
   - Geographic distribution analysis
@@ -333,7 +333,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T5.1)
   - **Estimated time:** 4 hours
 
-- [ ] **T5.3:** Build logistics_mart
+- [x] **T5.3:** Build logistics_mart
   - Delivery time analysis (estimated vs actual)
   - Freight cost optimization insights
   - Seller performance by region
@@ -341,7 +341,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T5.1, T5.2)
   - **Estimated time:** 4 hours
 
-- [ ] **T5.4:** Create mart refresh strategy
+- [x] **T5.4:** Create mart refresh strategy
   - Incremental vs full refresh logic for each mart
   - Schedule optimization (which marts when)
   - Dependency management between marts
@@ -351,7 +351,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
 
 ### Phase 6: Orchestration — Airflow DAGs (5 tasks)
 
-- [ ] **T6.1:** Create kaggle_ingestion_dag
+- [x] **T6.1:** Create kaggle_ingestion_dag
   - Task 1: Download from Kaggle API
   - Task 2: Validate CSV schemas
   - Task 3: Convert to Parquet + upload to MinIO bronze
@@ -361,7 +361,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No
   - **Estimated time:** 4 hours
 
-- [ ] **T6.2:** Create mssql_ingestion_dag
+- [x] **T6.2:** Create mssql_ingestion_dag
   - Task 1: Connect to MSSQL, list tables
   - Task 2: Read tables (batched for large ones)
   - Task 3: Write to MinIO bronze as Parquet
@@ -371,7 +371,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T6.1)
   - **Estimated time:** 4 hours
 
-- [ ] **T6.3:** Create dbt_olist_dag
+- [x] **T6.3:** Create dbt_olist_dag
   - Task 1: dbt run --select tag:olist,tag:staging
   - Task 2: dbt run --select tag:olist,tag:intermediate
   - Task 3: dbt run --select tag:olist,tag:mart
@@ -380,7 +380,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T6.2)
   - **Estimated time:** 3 hours
 
-- [ ] **T6.4:** Create data_quality_dag
+- [x] **T6.4:** Create data_quality_dag
   - Task 1: Run Great Expectations suites on bronze tables
   - Task 2: Check data freshness (last ingestion timestamp)
   - Task 3: Validate mart row counts and metrics
@@ -389,7 +389,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T6.3)
   - **Estimated time:** 4 hours
 
-- [ ] **T6.5:** Create mart_export_dag
+- [x] **T6.5:** Create mart_export_dag
   - Task 1: Export gold marts from PostgreSQL → ClickHouse
   - Task 2: Archive gold data to MinIO gold bucket (Parquet)
   - Task 3: Refresh Trino table metadata
@@ -400,7 +400,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
 
 ### Phase 7: FastAPI Backend Extensions (4 tasks)
 
-- [ ] **T7.1:** Create Airflow proxy router
+- [x] **T7.1:** Create Airflow proxy router
   - New router: `src/api/routers/monitor.py`
   - Proxy endpoints:
     - GET /api/v1/monitor/dags → Airflow GET /api/v1/dags
@@ -413,7 +413,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No
   - **Estimated time:** 4 hours
 
-- [ ] **T7.2:** Create ingestion metrics router
+- [x] **T7.2:** Create ingestion metrics router
   - New router: `src/api/routers/ingestion.py`
   - Endpoints:
     - GET /api/v1/ingestion/sources — list all sources (kaggle, mssql, crypto APIs)
@@ -424,7 +424,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T7.1)
   - **Estimated time:** 3 hours
 
-- [ ] **T7.3:** Create analytics data router
+- [x] **T7.3:** Create analytics data router
   - New router: `src/api/routers/dashboard.py`
   - Endpoints:
     - GET /api/v1/dashboard/kpis — key metrics (total orders, revenue, customers)
@@ -437,7 +437,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T7.1, T7.2)
   - **Estimated time:** 4 hours
 
-- [ ] **T7.4:** Add Trino query endpoint
+- [x] **T7.4:** Add Trino query endpoint
   - Endpoint: POST /api/v1/query/trino — execute SQL on Trino
   - Read-only queries against MinIO data lake
   - Pagination, timeout, result size limits
@@ -447,7 +447,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
 
 ### Phase 8: Next.js UI — Management Pages (5 tasks)
 
-- [ ] **T8.1:** Create Airflow Monitor page
+- [x] **T8.1:** Create Airflow Monitor page
   - Route: `/monitor/airflow`
   - Components:
     - DAG list table (name, schedule, last run, status, actions)
@@ -459,7 +459,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No
   - **Estimated time:** 6 hours
 
-- [ ] **T8.2:** Create Ingestion Monitor page
+- [x] **T8.2:** Create Ingestion Monitor page
   - Route: `/monitor/ingestion`
   - Components:
     - Source cards (Kaggle, MSSQL, CoinGecko, FRED, etc.)
@@ -471,7 +471,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T8.1)
   - **Estimated time:** 5 hours
 
-- [ ] **T8.3:** Create Analytics Dashboard page
+- [x] **T8.3:** Create Analytics Dashboard page
   - Route: `/dashboard`
   - Components:
     - KPI cards (total orders, revenue, avg order value, avg delivery time)
@@ -485,7 +485,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T8.1, T8.2)
   - **Estimated time:** 8 hours
 
-- [ ] **T8.4:** Update sidebar navigation
+- [x] **T8.4:** Update sidebar navigation
   - Add new sections:
     - "Monitoring": Airflow Monitor, Ingestion Monitor
     - "Analytics": Dashboard
@@ -495,7 +495,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T8.1)
   - **Estimated time:** 1 hour
 
-- [ ] **T8.5:** Add shared UI components
+- [x] **T8.5:** Add shared UI components
   - StatusBadge component (healthy/degraded/error)
   - RefreshButton with auto-refresh toggle
   - DataTable with sorting/filtering/pagination
@@ -506,7 +506,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
 
 ### Phase 9: Monitoring & Data Quality (4 tasks)
 
-- [ ] **T9.1:** Setup Prometheus metrics for new pipelines
+- [x] **T9.1:** Setup Prometheus metrics for new pipelines
   - Add metrics: ingestion_rows_total, ingestion_duration_seconds, ingestion_errors_total
   - Add metrics: dbt_run_duration_seconds, dbt_test_pass_rate
   - Add metrics: trino_query_duration_seconds
@@ -514,7 +514,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No
   - **Estimated time:** 3 hours
 
-- [ ] **T9.2:** Create Grafana dashboards
+- [x] **T9.2:** Create Grafana dashboards
   - Pipeline health dashboard (DAG success/failure rates)
   - Data freshness dashboard (last ingestion per source)
   - Data quality dashboard (test pass rates, row counts)
@@ -522,7 +522,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No (depends on T9.1)
   - **Estimated time:** 5 hours
 
-- [ ] **T9.3:** Configure Great Expectations
+- [x] **T9.3:** Configure Great Expectations
   - Create expectation suites for Olist bronze tables
   - Create expectation suites for MSSQL bronze tables
   - Validate: not null, unique, accepted values, referential integrity
@@ -531,7 +531,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** Yes (with T9.2)
   - **Estimated time:** 4 hours
 
-- [ ] **T9.4:** Setup alerting
+- [x] **T9.4:** Setup alerting
   - Email alerts for DAG failures
   - Slack webhook integration for critical issues
   - Data quality alert thresholds
@@ -541,7 +541,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
 
 ### Phase 10: Testing & Documentation (2 tasks)
 
-- [ ] **T10.1:** Write tests
+- [x] **T10.1:** Write tests
   - Unit tests: Kaggle client, validation module, MinIO loader
   - Integration tests: end-to-end ingestion pipeline
   - dbt tests: run `dbt test` for all Olist models
@@ -549,7 +549,7 @@ Next.js UI → FastAPI /api/v1/analytics/* → ClickHouse/PostgreSQL queries
   - **Parallelizable:** No
   - **Estimated time:** 8 hours
 
-- [ ] **T10.2:** Create documentation
+- [x] **T10.2:** Create documentation
   - Architecture documentation (updated with Trino, dual sources)
   - Setup guide (docker-compose, .env, first run)
   - API documentation (auto-generated via FastAPI /docs)
