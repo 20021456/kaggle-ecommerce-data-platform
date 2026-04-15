@@ -10,7 +10,7 @@ Flow:
 from datetime import datetime
 
 from airflow.decorators import dag, task
-from airflow.common.default_args import DEFAULT_ARGS
+from common.default_args import DEFAULT_ARGS
 
 
 # Mart tables to export: (pg_schema.table, clickhouse_table)

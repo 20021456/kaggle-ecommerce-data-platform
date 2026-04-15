@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from airflow.common.callbacks import task_failure_alert, task_success_alert
+from common.callbacks import task_failure_alert, task_success_alert
 
 DEFAULT_ARGS = {
     "owner": "data-team",

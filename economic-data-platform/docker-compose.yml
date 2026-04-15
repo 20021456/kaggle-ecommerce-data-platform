@@ -325,6 +325,8 @@ services:
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-your_fernet_key_here}
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-your_secret_key_here}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      PYTHONPATH: /opt/airflow
       # REST API authentication (basic auth for FastAPI proxy)
       AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
       AIRFLOW__API__ACCESS_CONTROL_ALLOW_HEADERS: "*"
@@ -332,7 +334,10 @@ services:
       AIRFLOW__API__ACCESS_CONTROL_ALLOW_ORIGINS: "*"
     volumes:
       - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/common:/opt/airflow/common
       - ./airflow/plugins:/opt/airflow/plugins
+      - ./ingestion:/opt/airflow/ingestion
+      - ./src:/opt/airflow/src
       - ./dbt:/opt/airflow/dbt
       - airflow_logs:/opt/airflow/logs
     ports:
@@ -354,10 +359,15 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-economic_user}:${POSTGRES_PASSWORD:-economic_password}@postgres:5432/airflow
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-your_fernet_key_here}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      PYTHONPATH: /opt/airflow
       AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
     volumes:
       - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/common:/opt/airflow/common
       - ./airflow/plugins:/opt/airflow/plugins
+      - ./ingestion:/opt/airflow/ingestion
+      - ./src:/opt/airflow/src
       - ./dbt:/opt/airflow/dbt
       - airflow_logs:/opt/airflow/logs
     command: scheduler

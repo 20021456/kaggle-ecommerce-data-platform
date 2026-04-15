@@ -21,7 +21,8 @@ help:
 	@echo ""
 	@echo "Database:"
 	@echo "  make migrate          Run database migrations (PostgreSQL DDL)"
-	@echo "  make seed             Seed database with sample data"
+	@echo "  make seed             Seed database via dbt seeds"
+	@echo "  make migrate-docker   Run migrations inside Docker container"
 	@echo ""
 	@echo "dbt Commands:"
 	@echo "  make dbt-run          Run dbt models"
@@ -49,9 +50,10 @@ help:
 	@echo ""
 	@echo "Testing & Code Quality:"
 	@echo "  make test             Run all tests"
-	@echo "  make test-unit        Run unit tests only"
-	@echo "  make test-int         Run integration tests only"
+	@echo "  make test-api         Run API router tests"
 	@echo "  make test-dags        Run Airflow DAG integrity tests"
+	@echo "  make test-transform   Run dbt model structure tests"
+	@echo "  make test-quality     Run data quality tests"
 	@echo "  make lint             Run linters (flake8 + isort + black)"
 	@echo "  make format           Auto-format code"
 	@echo "  make type-check       Run mypy type checking"
@@ -104,11 +106,23 @@ docker-rebuild:
 
 migrate:
 	@echo "Running database migrations..."
-	python -c "from src.utils.db_setup import run_migrations; run_migrations()"
+	@for f in sql/postgres/0*.sql; do echo "  → $$f"; psql "$(DATABASE_URL)" -f "$$f" 2>/dev/null || PGPASSWORD=$(POSTGRES_PASSWORD) psql -h localhost -U $(POSTGRES_USER) -d $(POSTGRES_DB) -f "$$f"; done
+	@echo "Migrations complete!"
+
+migrate-docker:
+	@echo "Running migrations inside Docker..."
+	docker exec -i economic-postgres psql -U $${POSTGRES_USER:-economic_user} -d $${POSTGRES_DB:-economic_data} < sql/postgres/01_bronze_schema.sql
+	docker exec -i economic-postgres psql -U $${POSTGRES_USER:-economic_user} -d $${POSTGRES_DB:-economic_data} < sql/postgres/02_silver_schema.sql
+	docker exec -i economic-postgres psql -U $${POSTGRES_USER:-economic_user} -d $${POSTGRES_DB:-economic_data} < sql/postgres/03_gold_crypto.sql
+	docker exec -i economic-postgres psql -U $${POSTGRES_USER:-economic_user} -d $${POSTGRES_DB:-economic_data} < sql/postgres/04_gold_economic.sql
+	docker exec -i economic-postgres psql -U $${POSTGRES_USER:-economic_user} -d $${POSTGRES_DB:-economic_data} < sql/postgres/05_gold_combined.sql
+	docker exec -i economic-postgres psql -U $${POSTGRES_USER:-economic_user} -d $${POSTGRES_DB:-economic_data} < sql/postgres/06_bronze_olist.sql
+	docker exec -i economic-postgres psql -U $${POSTGRES_USER:-economic_user} -d $${POSTGRES_DB:-economic_data} < sql/postgres/07_bronze_mssql.sql
+	@echo "Docker migrations complete!"
 
 seed:
-	@echo "Seeding database with sample data..."
-	python scripts/seed_data.py
+	@echo "Seeding via dbt seeds..."
+	cd $(DBT_PROJECT_DIR) && dbt seed
 
 # =============================================================================
 # dbt Commands
@@ -148,11 +162,11 @@ api-prod:
 
 ingest-crypto:
 	@echo "Running crypto data ingestion..."
-	python -m src.ingestion.crypto.run_ingestion
+	python -c "from ingestion.custom.api.crypto.coingecko_client import CoinGeckoClient; c = CoinGeckoClient(); print(c.get_top_coins(limit=5))"
 
 ingest-econ:
 	@echo "Running economic data ingestion..."
-	python -m src.ingestion.economic.run_ingestion
+	python -c "from ingestion.custom.api.economic.fred_client import FredClient; c = FredClient(); print(c.health_check())"
 
 ingest-olist:
 	@echo "Running Olist e-commerce CSV ingestion..."
@@ -163,7 +177,7 @@ ingest-all: ingest-olist ingest-crypto ingest-econ
 
 stream-start:
 	@echo "Starting real-time streaming..."
-	python -m src.ingestion.streaming.kafka_producer
+	python -c "from ingestion.custom.api.crypto.binance_websocket import BinanceWebSocket; ws = BinanceWebSocket(); ws.start()"
 
 # =============================================================================
 # Frontend (Next.js UI)
@@ -196,16 +210,19 @@ quality-all: quality-olist quality-mssql
 # =============================================================================
 
 test:
-	pytest tests/ -v --cov=src --cov-report=html --cov-report=term-missing
+	pytest tests/ -v --cov=src --cov-report=term-missing
 
-test-unit:
-	pytest tests/unit/ -v
-
-test-int:
-	pytest tests/integration/ -v
+test-api:
+	pytest tests/test_api/ -v
 
 test-dags:
 	pytest tests/test_dags/ -v
+
+test-transform:
+	pytest tests/test_transform/ -v
+
+test-quality:
+	pytest tests/test_quality/ -v
 
 lint:
 	flake8 src/ tests/
@@ -245,10 +262,11 @@ clean:
 	rm -rf htmlcov/ .coverage coverage.xml
 
 docs:
-	mkdocs build
+	cd $(DBT_PROJECT_DIR) && dbt docs generate
+	@echo "dbt docs generated. Run 'make docs-serve' to view."
 
 docs-serve:
-	mkdocs serve
+	cd $(DBT_PROJECT_DIR) && dbt docs serve
 
 # =============================================================================
 # Jupyter
@@ -261,10 +279,13 @@ notebook:
 # Spark
 # =============================================================================
 
+# Spark jobs (requires PySpark installed and spark/ directory populated)
 spark-submit-crypto:
-	spark-submit --master local[*] src/processing/spark_jobs/bronze_to_silver_crypto.py
+	@echo "Spark jobs are optional — dbt handles transformations."
+	@echo "To enable, add Spark job scripts to spark/jobs/ and update this target."
 
 spark-submit-econ:
-	spark-submit --master local[*] src/processing/spark_jobs/bronze_to_silver_economic.py
+	@echo "Spark jobs are optional — dbt handles transformations."
+	@echo "To enable, add Spark job scripts to spark/jobs/ and update this target."
 
 

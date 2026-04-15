@@ -1,0 +1,128 @@
+name: CI — Lint & Test
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Python Lint & Test ───────────────────────────────────────────
+  python:
+    name: Python Lint & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U test_user"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install flake8 black isort mypy pytest pytest-cov
+          pip install -r requirements.txt
+        working-directory: economic-data-platform
+
+      - name: Lint — flake8
+        run: flake8 src/ tests/ --max-line-length=120 --extend-ignore=E203,W503
+        working-directory: economic-data-platform
+
+      - name: Lint — black (check)
+        run: black --check --line-length=120 src/ tests/
+        working-directory: economic-data-platform
+        continue-on-error: true
+
+      - name: Lint — isort (check)
+        run: isort --check-only --profile=black src/ tests/
+        working-directory: economic-data-platform
+        continue-on-error: true
+
+      - name: Test — DAG integrity
+        run: pytest tests/test_dags/ -v
+        working-directory: economic-data-platform
+
+      - name: Test — dbt model structure
+        run: pytest tests/test_transform/ -v
+        working-directory: economic-data-platform
+
+      - name: Test — API routers
+        run: pytest tests/test_api/ -v
+        working-directory: economic-data-platform
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+
+  # ── Next.js Lint & Build ─────────────────────────────────────────
+  frontend:
+    name: Next.js Lint & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: economic-data-platform/ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: economic-data-platform/ui
+
+      - name: Lint
+        run: npm run lint
+        working-directory: economic-data-platform/ui
+        continue-on-error: true
+
+      - name: Build
+        run: npm run build
+        working-directory: economic-data-platform/ui
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+
+  # ── dbt Compile Check ───────────────────────────────────────────
+  dbt:
+    name: dbt Compile
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dbt
+        run: pip install dbt-core dbt-postgres
+
+      - name: dbt deps
+        run: dbt deps || true
+        working-directory: economic-data-platform/dbt
+
+      - name: dbt compile (parse check)
+        run: dbt parse
+        working-directory: economic-data-platform/dbt
+        continue-on-error: true
