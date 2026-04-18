@@ -85,7 +85,7 @@ services:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB:-economic_data}
     ports:
       - "8123:8123"
-      - "9000:9000"
+      - "9100:9000"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - ./sql/clickhouse:/docker-entrypoint-initdb.d:ro
