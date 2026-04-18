@@ -49,12 +49,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
 
-# Copy application code (updated paths after restructure)
+# Copy application code
 COPY src/ ./src/
-COPY ingestion/ ./ingestion/
 COPY sql/ ./sql/
 COPY dbt/ ./dbt/
 COPY scripts/ ./scripts/
+
+# Map ingestion to src/ingestion so "from src.ingestion.*" imports resolve
+COPY ingestion/custom/api/crypto/ ./src/ingestion/crypto/
+COPY ingestion/custom/api/economic/ ./src/ingestion/economic/
+COPY ingestion/custom/api/ecommerce/ ./src/ingestion/ecommerce/
+COPY ingestion/custom/api/__init__.py ./src/ingestion/api_init.py
+COPY ingestion/custom/base_client.py ./src/ingestion/base_client.py
+COPY ingestion/custom/base.py ./src/ingestion/base.py
+COPY ingestion/custom/config.py ./src/ingestion/config.py
+COPY ingestion/custom/mssql_client.py ./src/ingestion/mssql_client.py
+COPY ingestion/custom/db/ ./src/ingestion/db/
+COPY ingestion/custom/__init__.py ./src/ingestion/__init__.py
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser \
