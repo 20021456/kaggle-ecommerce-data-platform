@@ -47,39 +47,40 @@
 -- );
 
 -- ─── S3Queue for continuous file ingestion from MinIO ────────────────────────
+-- NOTE: S3Queue engine requires ClickHouse Keeper or Zookeeper.
+-- Uncomment below when keeper is configured in your deployment.
 
--- Auto-ingest new Parquet files dropped into MinIO bronze bucket
-CREATE TABLE IF NOT EXISTS bronze._s3queue_crypto_files
-(
-    coin_id      String,
-    symbol       String,
-    price_date   Date,
-    open_price   Decimal128(10),
-    high_price   Decimal128(10),
-    low_price    Decimal128(10),
-    close_price  Decimal128(10),
-    volume_usd   Decimal128(2),
-    market_cap   Decimal128(2)
-)
-ENGINE = S3Queue('http://minio:9000/bronze/crypto/incoming/*.parquet',
-                 'minioadmin', 'minioadmin', 'Parquet')
-SETTINGS
-    mode = 'unordered',
-    s3queue_polling_min_timeout_ms = 5000,
-    s3queue_polling_max_timeout_ms = 30000;
+-- CREATE TABLE IF NOT EXISTS bronze._s3queue_crypto_files
+-- (
+--     coin_id      String,
+--     symbol       String,
+--     price_date   Date,
+--     open_price   Decimal128(10),
+--     high_price   Decimal128(10),
+--     low_price    Decimal128(10),
+--     close_price  Decimal128(10),
+--     volume_usd   Decimal128(2),
+--     market_cap   Decimal128(2)
+-- )
+-- ENGINE = S3Queue('http://minio:9000/bronze/crypto/incoming/*.parquet',
+--                  'minioadmin', 'minioadmin', 'Parquet')
+-- SETTINGS
+--     mode = 'unordered',
+--     s3queue_polling_min_timeout_ms = 5000,
+--     s3queue_polling_max_timeout_ms = 30000;
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS bronze.mv_s3queue_crypto
-TO bronze.coingecko_prices AS
-SELECT
-    now64() AS ingested_at,
-    coin_id,
-    'usd' AS vs_currency,
-    toInt64(toUnixTimestamp(toDateTime(price_date)) * 1000) AS timestamp_ms,
-    close_price AS price,
-    market_cap,
-    volume_usd AS total_volume,
-    '' AS raw_data
-FROM bronze._s3queue_crypto_files;
+-- CREATE MATERIALIZED VIEW IF NOT EXISTS bronze.mv_s3queue_crypto
+-- TO bronze.coingecko_prices AS
+-- SELECT
+--     now64() AS ingested_at,
+--     coin_id,
+--     'usd' AS vs_currency,
+--     toInt64(toUnixTimestamp(toDateTime(price_date)) * 1000) AS timestamp_ms,
+--     close_price AS price,
+--     market_cap,
+--     volume_usd AS total_volume,
+--     '' AS raw_data
+-- FROM bronze._s3queue_crypto_files;
 
 -- ─── EXPORT TO MINIO (Gold → Parquet archive) ───────────────────────────────
 
